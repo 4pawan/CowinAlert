@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Configuration;
 using System.IO;
@@ -13,6 +14,7 @@ namespace Cowin.Console20
         static string apiUrl = string.Format(ConfigurationManager.AppSettings["apiUrl"], DateTime.Today.Date.ToString("d"));
         public static string Token = ConfigurationManager.AppSettings["token"];
         public static int TimeToSleepInMinute = Convert.ToInt32(ConfigurationManager.AppSettings["timeToSleepInMinute"]);
+        public static string PinCodeToCheck = ConfigurationManager.AppSettings["pinCodeToCheck"];
 
         public List<Center> centers { get; set; }
 
@@ -31,19 +33,29 @@ namespace Cowin.Console20
 
             CalendarByDistrictModel slot = JsonConvert.DeserializeObject<CalendarByDistrictModel>(result);
 
-            var list = slot.centers.Where(c => CalendarByDistrictModel.IsSlotAvailable(c.sessions));
+            var list = slot.centers.FindAll(c => CalendarByDistrictModel.IsSlotAvailable(c));
 
             return list;
         }
 
 
-        public static bool IsSlotAvailable(List<CalendarByDistrictModel.Session> sessions)
+        public static bool IsSlotAvailable(Center c)
         {
+            List<Session> found = new List<Session>();
 
-            var found = sessions.Where(s => s.available_capacity_dose1 > 0
-                                            && s.min_age_limit < 30
-                                            && (s.vaccine == "COVISHIELD" || s.vaccine == "COVAXIN")
-            );
+            if (string.IsNullOrWhiteSpace(PinCodeToCheck))
+            {
+                found = c.sessions.Where(s => s.available_capacity_dose1 > 0
+                                               && s.min_age_limit < 30
+                                               && (s.vaccine == "COVISHIELD" || s.vaccine == "COVAXIN")).ToList();
+            }
+            else
+            {
+                found = c.sessions.Where(s => PinCodeToCheck.Contains(Convert.ToString(c.pincode))
+                                              && s.available_capacity_dose1 > 0
+                                              && s.min_age_limit < 30
+                                              && (s.vaccine == "COVISHIELD" || s.vaccine == "COVAXIN")).ToList();
+            }
 
             return found.Any();
         }
